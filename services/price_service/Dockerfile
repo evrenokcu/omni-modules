@@ -1,33 +1,35 @@
 # ---------- Stage 1: Builder ----------
 FROM python:3.9-slim as builder
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
-# Install build dependencies (e.g., gcc for compiling any packages if needed)
+# Install build dependencies (if needed)
 RUN apt-get update && apt-get install -y --no-install-recommends gcc
 
 # Upgrade pip
 RUN pip install --upgrade pip
 
-# Copy requirements and install Python dependencies into a temporary location
+# Copy the requirements file and install dependencies to a temporary location
 COPY requirements.txt .
 RUN pip install --prefix=/install -r requirements.txt
 
 # ---------- Stage 2: Production ----------
 FROM python:3.9-slim
 
-# Set working directory
 WORKDIR /app
 
-# Copy installed Python packages from the builder stage
+# Copy installed packages from the builder stage into the production image
 COPY --from=builder /install /usr/local
 
-# Copy the application source code
-COPY main.py .
+# Copy the entire application code into the image
+COPY . .
 
-# Expose the default port (make sure it matches your application's default or desired runtime port)
+# Expose the default port (8000)
 EXPOSE 8000
 
-# Run the application using the Python script so that it picks up the PORT env variable
+# Declare a volume mount at /price for persistent storage
+VOLUME /price
+
+# Run the application
 CMD ["python", "main.py"]
