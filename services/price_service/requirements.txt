@@ -1,0 +1,35 @@
+# flask
+# sse-starlette
+# python-dotenv
+# llama-index
+# llama-index-llms-openai
+# llama-index-llms-anthropic
+# llama-index-llms-gemini
+# argparse
+# uvicorn
+# openai
+# flask_cors
+
+#llama-index
+# llama-index-llms-openai
+# llama-index-llms-anthropic
+# llama-index-llms-gemini
+# llama-index-llms-groq
+quart
+quart-cors
+sse-starlette
+python-dotenv
+argparse
+uvicorn
+openai
+pydantic
+langchain_community
+langchain_openai
+langchain_anthropic
+langchain_google_genai
+schedule
+##for langchain version
+
+
+#dotenv
+
