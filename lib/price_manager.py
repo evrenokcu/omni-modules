@@ -28,26 +28,27 @@ class LLMPriceManager:
             temperature=0
         )
         self.prompt = ChatPromptTemplate.from_messages([
-            (
-                "system",
-                """You are an AI pricing expert. Return only a JSON object with the exact structure:
-{
+    (
+        "system",
+        """You are an AI pricing expert. Return only a JSON object with the exact structure:
+{{
     "models": [
-        {
+        {{
             "api_model_name": "model_name",
-            "pricing": {
+            "pricing": {{
                 "input_price": number,
                 "output_price": number,
                 "currency": "USD"
-            }
-        },
+            }}
+        }},
         ...
     ]
-}
+}}
 Use actual current prices per 1K tokens."""
-            ),
-            ("human", "Provide the latest input and output token prices for these models: {model_list}")
-        ])
+    ),
+    ("human", "Provide the latest input and output token prices for these models: {model_list}")
+])
+
 
     def fetch_all_prices(self):
         """Fetch the latest prices for all registered LLMs in a single query"""
