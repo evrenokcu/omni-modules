@@ -8,7 +8,7 @@ from enum import Enum, auto
 from dotenv import load_dotenv
 
 # Load environment variables early so they can be used in default parameters.
-#load_dotenv()
+load_dotenv()
 CACHE_DIR = os.getenv("CACHE_DIR", "cache")
 
 from langchain_anthropic import ChatAnthropic
@@ -149,10 +149,10 @@ class LLMPriceManager:
         self._initialize_llm_clients()
 
     def _load_environment(self):
-   #     load_dotenv()
         self.anthropic_key = os.getenv("ANTHROPIC_API_KEY")
         if not self.anthropic_key:
             raise ValueError("Anthropic API key must be set in environment variables")
+
 
     def _initialize_llm_clients(self):
         self.price_fetcher = ChatAnthropic(
@@ -242,8 +242,6 @@ from quart_cors import cors
 import asyncio
 import threading
 import time
-import argparse
-import uvicorn
 import schedule
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel, Field
@@ -342,26 +340,27 @@ async def stream_prices():
 
 
 # ===============================
-# === Command-line Entry Point
+# === Application Entry Point
 # ===============================
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="LLM Price Manager: Run in API server mode or execute one-time price fetch."
-    )
-    parser.add_argument(
-        "--mode",
-        choices=["serve", "fetch"],
-        default="serve",
-        help="Run mode: 'serve' to start the API server, 'fetch' to run one-time price fetch (using the original main() logic)."
-    )
-    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host for the server")
-    parser.add_argument("--port", type=int, default=8000, help="Port for the server")
-    args = parser.parse_args()
-
-    if args.mode == "fetch":
-        # Run the original main() which fetches and updates prices.
-        main()
-    else:
-        # Start the API server with uvicorn.
-        uvicorn.run(app, host=args.host, port=args.port)
+    # Ensure the cache directory exists.
+    cache_dir = Path(CACHE_DIR)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Ensure llm_registry.json exists. If not, create an empty JSON array.
+    registry_file = cache_dir / "llm_registry.json"
+    if not registry_file.exists():
+        registry_file.write_text("[]")
+    
+    # Ensure llm_prices_cache.json exists. If not, create an empty JSON object.
+    prices_file = cache_dir / "llm_prices_cache.json"
+    if not prices_file.exists():
+        prices_file.write_text("{}")
+    
+    # Always run the API server without expecting any command-line arguments.
+    import uvicorn
+    port = int(os.getenv("PORT", 8081))
+    #print(f"Starting server on port {port}")
+    
+    uvicorn.run(app, host="0.0.0.0", port=port)
