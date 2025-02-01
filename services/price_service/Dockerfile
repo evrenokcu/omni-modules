@@ -1,7 +1,7 @@
 # ---------- Stage 1: Builder ----------
 FROM python:3.9-slim as builder
 
-# Set the working directory
+# Set the working directory in the builder container.
 WORKDIR /app
 
 # Install build dependencies (if needed)
@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc
 # Upgrade pip
 RUN pip install --upgrade pip
 
-# Copy the requirements file and install dependencies to a temporary location
+# Copy the requirements file and install dependencies.
 COPY requirements.txt .
 RUN pip install --prefix=/install -r requirements.txt
 
@@ -19,17 +19,19 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-# Copy installed packages from the builder stage into the production image
+# Copy installed packages from the builder stage.
 COPY --from=builder /install /usr/local
 
-# Copy the entire application code into the image
-COPY . .
+# Copy only the required folders and files.
+COPY requirements.txt .
+COPY lib/ lib/
+COPY services/price_service/ services/price_service/
 
-# Expose the default port (8000)
-EXPOSE 8000
+# Expose the port your app uses.
+EXPOSE 8081
 
-# Declare a volume mount at /price for persistent storage
+# Declare a volume mount for persistent storage.
 VOLUME /price
 
-# Run the application
-CMD ["python", "main.py"]
+# Run the application.
+CMD ["python", "services/price_service/app.py"]
