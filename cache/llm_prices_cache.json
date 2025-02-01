@@ -7,7 +7,7 @@
       "output_price": 0.0008,
       "currency": "USD"
     },
-    "timestamp": "2025-02-01T12:34:17.363052"
+    "timestamp": "2025-02-01T13:58:37.473971"
   },
   "ANTHROPIC:claude-3-sonnet-20240307": {
     "provider": "ANTHROPIC",
@@ -17,7 +17,7 @@
       "output_price": 0.0008,
       "currency": "USD"
     },
-    "timestamp": "2025-02-01T12:34:17.363081"
+    "timestamp": "2025-02-01T13:58:37.474001"
   },
   "ANTHROPIC:claude-3-opus-20240307": {
     "provider": "ANTHROPIC",
@@ -27,7 +27,7 @@
       "output_price": 0.0008,
       "currency": "USD"
     },
-    "timestamp": "2025-02-01T12:34:17.363101"
+    "timestamp": "2025-02-01T13:58:37.474020"
   },
   "OPENAI:gpt-3.5-turbo": {
     "provider": "OPENAI",
@@ -37,7 +37,7 @@
       "output_price": 0.002,
       "currency": "USD"
     },
-    "timestamp": "2025-02-01T12:34:17.363118"
+    "timestamp": "2025-02-01T13:58:37.474038"
   },
   "OPENAI:gpt-4-turbo-preview": {
     "provider": "OPENAI",
@@ -47,6 +47,6 @@
       "output_price": 0.06,
       "currency": "USD"
     },
-    "timestamp": "2025-02-01T12:34:17.363136"
+    "timestamp": "2025-02-01T13:58:37.474056"
   }
 }
