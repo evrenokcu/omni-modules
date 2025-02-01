@@ -269,7 +269,8 @@ async def startup():
         price_manager.fetch_all_prices()
     
     # Schedule price fetch at 01:30 AM daily.
-    schedule.every().day.at("01:30").do(price_manager.fetch_all_prices)
+    schedule.every().minute.do(price_manager.fetch_all_prices)
+    #schedule.every().day.at("01:30").do(price_manager.fetch_all_prices)
 
     # Run the scheduler in a background thread.
     def run_scheduler():
