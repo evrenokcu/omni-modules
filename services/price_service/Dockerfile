@@ -29,7 +29,7 @@ COPY . .
 #COPY services/price_service/ services/price_service/
 
 # Expose the port your app uses.
-EXPOSE 8081
+EXPOSE 8080
 
 # Declare a volume mount for persistent storage.
 VOLUME /price
