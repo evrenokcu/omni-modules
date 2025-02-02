@@ -5,7 +5,7 @@ FROM python:3.9-slim as builder
 WORKDIR /app
 
 # Install build dependencies (if needed)
-RUN apt-get update && apt-get install -y --no-install-recommends gcc
+RUN apt-get update && apt-get install -y --no-install-recommends gcc && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip
 RUN pip install --upgrade pip
@@ -22,11 +22,11 @@ WORKDIR /app
 # Copy installed packages from the builder stage.
 COPY --from=builder /install /usr/local
 
+# Copy all files from the build context into /app.
 COPY . .
-# Copy only the required folders and files.
-#COPY requirements.txt .
-#COPY lib/ lib/
-#COPY services/price_service/ services/price_service/
+
+# (Optional) Verify that main.py exists.
+RUN ls -la /app
 
 # Expose the port your app uses.
 EXPOSE 8080
@@ -35,4 +35,4 @@ EXPOSE 8080
 VOLUME /price
 
 # Run the application.
-CMD ["python", "services/price_service/main.py"]
+CMD ["python", "./services/price_service/main.py"]
