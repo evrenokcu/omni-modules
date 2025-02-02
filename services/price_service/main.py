@@ -129,7 +129,7 @@ async def get_llms():
         {
             "llm_name": "ChatGPT",
             "model_name": "gpt-3.5-turbo",
-            "id": "ChatGPT:gpt-3.5-turbo"
+            "id": "ChatGPT:gpt-3.5-turdbo"
         },
         {
             "llm_name": "Claude",
