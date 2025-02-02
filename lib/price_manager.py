@@ -6,7 +6,7 @@ import os
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
 
-from .models import PriceResponse
+from .models import AggregatedPrice, AggregatedPriceResponse, PriceResponse
 from .storage import JSONPriceStorage
 
 class LLMPriceManager:
@@ -34,7 +34,7 @@ class LLMPriceManager:
 {{
     "models": [
         {{
-            "api_model_name": "model_name",
+            "model_name": "model_name",
             "pricing": {{
                 "input_price": number,
                 "output_price": number,
@@ -53,7 +53,8 @@ Use actual current prices per 1K tokens."""
     def fetch_all_prices(self):
         """Fetch the latest prices for all registered LLMs in a single query"""
         models = self.registry.get_all_models()
-        model_names = [model.api_model_name for model in models]
+        # Extract model names from the nested LlmModel instances.
+        model_names = [model.model.model_name for model in models]
 
         if not model_names:
             print("No models found in the registry.")
@@ -72,20 +73,57 @@ Use actual current prices per 1K tokens."""
             cache = self.storage.load_prices()
 
             for model_data in data["models"]:
-                model_name = model_data["api_model_name"]
-                model = next((m for m in models if m.api_model_name == model_name), None)
+                model_name = model_data["model_name"]
+                # Look up using the nested model attribute.
+                model_config = next((m for m in models if m.model.model_name == model_name), None)
 
-                if model:
+                if model_config:
                     price_response = PriceResponse(
-                        model=model,
+                        model=model_config.model,
                         input_price=model_data["pricing"]["input_price"],
                         output_price=model_data["pricing"]["output_price"],
                         currency=model_data["pricing"]["currency"]
                     )
-                    cache[f"{model.provider.name}:{model.api_model_name}"] = price_response.to_dict()
+                    cache[f"{model_config.model.llm_name.name}:{model_config.model.model_name}"] = price_response.to_dict()
 
             self.storage.save_prices(cache)
             print("Price registry updated successfully.")
 
         except Exception as e:
             print(f"Error fetching prices: {str(e)}")
+    def get_combined_enabled_prices(self):
+        """
+        Filters the registry for enabled LLM model configurations,
+        retrieves their pricing information from storage, and returns
+        an aggregated response entity composed of AggregatedPrice items.
+        """
+        # Get all registered models.
+        all_models = self.registry.get_all_models()
+        # Filter only enabled configurations.
+        enabled_configs = [cfg for cfg in all_models if cfg.enabled]
+
+        # Load stored price information.
+        cache = self.storage.load_prices()
+        aggregated_list = []
+
+        # For each enabled configuration, build an AggregatedPrice.
+        for cfg in enabled_configs:
+            key = f"{cfg.model.id}"
+            if key in cache:
+                # Create a PriceResponse from the stored cache.
+                # (Assuming cache contains a dictionary with proper keys.)
+                price_resp = PriceResponse.from_dict(cache[key], cfg.model)
+            else:
+                price_resp = None
+
+            aggregated_list.append(
+                AggregatedPrice(
+                    config=cfg,
+                    price_response=price_resp
+                )
+            )
+
+        print(f"Aggregated {len(aggregated_list)} enabled model prices.")
+
+        # Return the aggregated response.
+        return AggregatedPriceResponse(responses=aggregated_list)

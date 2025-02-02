@@ -1,4 +1,4 @@
-    # services/price_service/app.py
+# services/price_service/app.py
 
 import os
 import json
@@ -32,7 +32,7 @@ if project_root not in sys.path:
 from lib.registry import JSONLLMRegistry
 from lib.storage import JSONPriceStorage
 from lib.price_manager import LLMPriceManager
-from lib.models import LLMProvider, LLMModel
+from lib.models import LlmModel, LlmName, LlmModelConfig
 
 # Initialize Quart and enable CORS.
 app = Quart(__name__)
@@ -71,27 +71,29 @@ async def get_llms():
     models = registry.get_all_models()
     return jsonify([model.to_dict() for model in models])
 
-# Pydantic model for adding a new LLM.
-class LLMModelInput(BaseModel):
-    provider: str = Field(..., description="LLM provider, e.g. ANTHROPIC or OPENAI")
-    api_model_name: str = Field(..., description="The API model name")
+# class LLMModelInput(BaseModel):
+#     model: LlmModel = Field(..., description="A nested object containing 'llm_name' and 'model_name'")
+#     enabled: bool = Field(..., description="Whether the model should be enabled")
+#     color: str = Field(..., description="Hex color code for the model (e.g. '#FFFFFF')")
+#     initial_char: str = Field(..., description="A single character representing the model (e.g. 'A')")
 
-# Endpoint to add a new LLM model.
-@app.route("/llms", methods=["POST"])
-async def add_llm():
-    data = await request.get_json()
-    try:
-        llm_input = LLMModelInput(**data)
-        try:
-            provider_enum = LLMProvider[llm_input.provider.upper()]
-        except KeyError:
-            return jsonify({"error": "Invalid provider"}), 400
-        new_model = LLMModel(provider=provider_enum, api_model_name=llm_input.api_model_name)
-        registry.models.append(new_model)
-        registry.persist()
-        return jsonify(new_model.to_dict()), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
+# # Endpoint to add a new LLM model.
+# @app.route("/llms", methods=["POST"])
+# async def add_llm():
+#     data = await request.get_json()
+#     try:
+#         llm_input = LLMModelInput(**data)
+#         new_model = LlmModelConfig(
+#             model=llm_input.model,
+#             enabled=llm_input.enabled,
+#             color=llm_input.color,
+#             initial_char=llm_input.initial_char
+#         )
+#         registry.models.append(new_model)
+#         registry.persist()
+#         return jsonify(new_model.to_dict()), 201
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 400
 
 # Endpoint to get current prices.
 @app.route("/prices", methods=["GET"])
@@ -118,6 +120,16 @@ async def stream_prices():
             }
             await asyncio.sleep(10)
     return EventSourceResponse(event_generator())
+# In services/price_service/app.py
+
+@app.route("/prices/aggregated", methods=["GET"])
+async def get_aggregated_prices():
+    try:
+        aggregated = price_manager.get_combined_enabled_prices()
+        # Using model_dump() in Pydantic v2:
+        return aggregated.model_dump_json()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     # Ensure that the required JSON files exist.
@@ -131,5 +143,5 @@ if __name__ == "__main__":
     
     # Start the API server with uvicorn.
     import uvicorn
-    port = int(os.getenv("PORT", 8081))
+    port = int(os.getenv("PORT", 8082))
     uvicorn.run(app, host="0.0.0.0", port=port)

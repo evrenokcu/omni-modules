@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import os
 #from dotenv import load_dotenv
 from quart import Quart, request, jsonify
@@ -11,7 +10,7 @@ from quart_cors import cors
 from pydantic import BaseModel
 import time
 import asyncio 
-from typing import Dict, List
+from typing import List
 ### start of langchain
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
@@ -21,8 +20,6 @@ import os
 from langchain_openai import ChatOpenAI, OpenAI
 from langchain_anthropic import Anthropic, AnthropicLLM, ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
-
-
 #env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "./.env"))
 
 
@@ -53,9 +50,6 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 os.environ["GRPC_VERBOSITY"] = "ERROR"
 os.environ["GRPC_TRACE"] = ""
 
-# Load environment variables.
-load_dotenv()
-
 def is_running_in_container() -> bool:
     try:
         with open("/proc/self/cgroup", "r") as f:
@@ -65,14 +59,6 @@ def is_running_in_container() -> bool:
     except FileNotFoundError:
         return False
     return False
-
-import sys
-from os.path import abspath, join, dirname
-project_root = abspath(join(dirname(__file__), "../../"))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
-
-from lib.models import LlmModel, LlmName
 
 # if is_running_in_container():
 #         print("The app is running inside a container.")
@@ -89,18 +75,16 @@ app = cors(app, allow_origin="*")
 app.debug = True
 
 class SingleLlmRequest(BaseModel):
-    llm: "LlmModel"  # changed from string field llm_name to an Llm object
+    llm_name: str
     prompt: str
-
 class LlmRequest(BaseModel):
     prompt: str
-
 class LlmResult(BaseModel):
-    llm: "LlmModel"  # changed from string field llm_name to an Llm object
+    llm_name: str
     response: str
 
 class LlmResponse(BaseModel):
-    llm: "LlmModel"  # changed from string field llm_name to an Llm object
+    llm_name: str
     response: str
     timestamp: str
     status: str
@@ -114,84 +98,51 @@ class LlmResponseList(BaseModel):
 class LlmResultList(BaseModel):
     responses: list[LlmResult]
 
-# ----------------------------
-# New code: Llm object with enum for llm_name and a computed id field
-from enum import Enum
-from pydantic import computed_field
+# Initialize LLM clients
+# llms = {
+#     "ChatGPT": OpenAI(api_key=os.getenv("OPENAI_API_KEY")),
+#     # "Claude": Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY")),
+#     "Claude": Gemini(api_key=os.getenv("GOOGLE_API_KEY")),
+#     "Gemini": Gemini(api_key=os.getenv("GOOGLE_API_KEY")),
+#     # "Groq": Groq(model="llama3-70b-8192", api_key=os.getenv("xai-fwJaNgak7lu7IZOZVrlTeqtn8WtJ2zV47VLvoK6fedx3b6VZnu9vUCKzz3i3zRisqCN0W2yTtzFtHfrb")),
+# }
 
-# class LlmName(str, Enum):
-#     CHATGPT = "ChatGPT"
-#     CLAUDE = "Claude"
-#     GEMINI = "Gemini"
-
-# class LlmModel(BaseModel):
-#     llm_name: LlmName
-#     model_name: str
-
-#     @computed_field
-#     @property
-#     def id(self) -> str:
-#         return f"{self.llm_name.value}_{self.model_name}"
-
-#     class Config:
-#         frozen = True  # if you really need immutability
-       
-#     def to_dict(self) -> Dict:
-#         return {"llm_name": self.llm_name.name, "model_name": self.model_name}
-
-#     @classmethod
-#     def from_dict(cls, data: Dict) -> "LlmModel":
-#         return cls(llm_name=LlmName[data["llm_name"]], model_name=data["model_name"])
-# ----------------------------
-
-
-
-def create_chat_client(llm: LlmModel):
-    if llm.llm_name == LlmName.OPENAI:
-        return ChatOpenAI(model_name=llm.model_name)
-    elif llm.llm_name == LlmName.CLAUDE:
-        return ChatAnthropic(model=llm.model_name, api_key=os.getenv("ANTHROPIC_API_KEY"))
-    elif llm.llm_name == LlmName.GEMINI:
-        return ChatGoogleGenerativeAI(model=llm.model_name)
-    else:
-        raise ValueError(f"Unsupported LLM type: {llm.llm_name}")
-
-# Create a list of Llm objects
-llm_list = [
-    LlmModel(llm_name=LlmName.OPENAI, model_name="gpt-4"),
-    LlmModel(llm_name=LlmName.CLAUDE, model_name="claude-3-5-sonnet-20240620"),
-    LlmModel(llm_name=LlmName.GEMINI, model_name="gemini-exp-1121"),
-]
-
-# Build the llms dictionary from the list of Llm objects using the factory method.
-# The keys are Llm objects and the values are the corresponding chat client instances.
-llms = { llm: create_chat_client(llm) for llm in llm_list }
+llms = {
+    #llm2 = 
+##llm = ChatGoogleGenerativeAI(model='claude-3-opus-20240229')
+ 
+    "ChatGPT": ChatOpenAI(model_name="gpt-4"),
+    #"ChatGPT": ChatGoogleGenerativeAI(model="models/gemini-1.5-flash"),
+     "Claude": ChatAnthropic(model="claude-3-5-sonnet-20240620", api_key=os.getenv("ANTHROPIC_API_KEY")),
+    #"Claude": ChatGoogleGenerativeAI(model="models/gemini-1.5-flash"),
+    "Gemini": ChatGoogleGenerativeAI(model="models/gemini-exp-1121"),
+    # "Groq": Groq(model="llama3-70b-8192", api_key=os.getenv("xai-fwJaNgak7lu7IZOZVrlTeqtn8WtJ2zV47VLvoK6fedx3b6VZnu9vUCKzz3i3zRisqCN0W2yTtzFtHfrb")),
+}
 
 async def process_llm(request: SingleLlmRequest) -> LlmResponse:
     start_time = time.time()
-    llm_client = llms[request.llm]
+    llm_client = llms[request.llm_name]
     response = await llm_client.ainvoke(request.prompt)
     token_count = response.usage_metadata.get("total_tokens", 0)  # 0 as a fallback value
     
     response_text = response.content if hasattr(response, 'content') else str(response)
     end_time = time.time()
     return LlmResponse(
-        llm=request.llm,
+        llm_name=request.llm_name,
         response=response_text,
         timestamp=datetime.now().isoformat(),
         status="completed",
         duration=end_time - start_time,
-        token_count=token_count,  # Default value for token count
-        price=0.0
+        token_count= token_count, # Default value for token count
+        price=  0.0
     )
-
-async def process_llm_list(llm_request: LlmRequest, llm_objs: List[LlmModel]) -> LlmResponseList:
+async def process_llm_list(llm_request: LlmRequest, llm_names: List[str]) -> LlmResponseList:
     """
     Process the specified LLMs in parallel based on the given LlmRequest and return an LlmResponseList.
     """
     tasks = [
-        process_llm(SingleLlmRequest(llm=llm_obj, prompt=llm_request.prompt))
-        for llm_obj in llm_objs
+        process_llm(SingleLlmRequest(llm_name=llm_name, prompt=llm_request.prompt))
+        for llm_name in llm_names
     ]
     results = await asyncio.gather(*tasks)
     return LlmResponseList(responses=results)
@@ -212,7 +163,7 @@ async def process_llm_result_list(llm_result_list: LlmResultList, request: LlmRe
     # Generate a new LlmRequest with an updated prompt
     llm_request = generate_prompt_from_result_list(llm_result_list, request)
 
-    # Call process_llm_list with the updated LlmRequest and all LLM objects
+    # Call process_llm_list with the updated LlmRequest and all LLM names
     return await process_llm_list(llm_request, list(llms.keys()))
 
 async def process_llm_result_list_on_llm(llm_result_list: LlmResultList, request: SingleLlmRequest) -> LlmResponseList:
@@ -222,19 +173,15 @@ async def process_llm_result_list_on_llm(llm_result_list: LlmResultList, request
     # Generate a new LlmRequest with an updated prompt
     llm_request = generate_prompt_from_result_list(llm_result_list, LlmRequest(prompt=request.prompt))
 
-    # Call process_llm with the updated LlmRequest and the Llm from request
-    return await process_llm(SingleLlmRequest(llm=request.llm, prompt=llm_request.prompt))
+    # Call process_llm_list with the updated LlmRequest and all LLM names
+    return await process_llm(SingleLlmRequest(llm_name= request.llm_name,prompt=llm_request.prompt))
 
 async def process_summarize(responses: LlmResultList) -> LlmResponseList:
     prompt = os.getenv("MERGE_PROMPT", "Summarize these responses.")
-    summarize_request = SingleLlmRequest(
-        llm=LlmModel(llm_name=LlmName.GEMINI, model_name="models/gemini-exp-1121"),
-        prompt=prompt
-    )
+    summarize_request = SingleLlmRequest(llm_name="Gemini", prompt=prompt)
     return await process_llm_result_list_on_llm(responses, summarize_request)
-
-async def process_refine(responses: LlmResultList) -> LlmResponseList:
-    prompt = os.getenv("EVALUATION_PROMPT")
+async def process_refine(responses:LlmResultList)->LlmResponseList:
+    prompt=os.getenv("EVALUATION_PROMPT")
     llm_response_list = await process_llm_result_list(responses, LlmRequest(prompt=prompt))
     return llm_response_list
 
@@ -256,8 +203,8 @@ async def summarize():
     # Return the LlmResponseList as a JSON response
     return jsonify(llm_response_list.model_dump())
 
-async def process_aggregate(llm_request: LlmRequest, llm_objs: List[LlmModel]) -> LlmResponseList:
-    return await process_llm_list(llm_request, llm_objs)
+async def process_aggregate(llm_request:LlmRequest, llms:List[str])->LlmResponseList:
+    return await process_llm_list(llm_request, llms)
 
 @app.post("/aggregate")
 async def aggregate():
@@ -268,7 +215,7 @@ async def aggregate():
     llm_request = LlmRequest(**data)
 
     # Use the helper method to process the LLMs
-    llm_response_list = await process_aggregate(llm_request, list(llms.keys()))
+    llm_response_list = await process_aggregate(llm_request, llms.keys())
 
     # Return the LlmResponseList as a JSON response
     return jsonify(llm_response_list.model_dump())
@@ -284,12 +231,12 @@ async def flow():
         llm_request = LlmRequest(**data)
 
         # Step 1: Aggregate
-        llm_objs = list(llms.keys())
-        aggregated_response = await process_aggregate(llm_request, llm_objs)
+        llm_names = list(llms.keys())
+        aggregated_response = await process_aggregate(llm_request, llm_names)
 
         # Convert the aggregated response to LlmResultList for refine step
         aggregated_results = LlmResultList(responses=[
-            LlmResult(llm=response.llm, response=response.response)
+            LlmResult(llm_name=response.llm_name, response=response.response)
             for response in aggregated_response.responses
         ])
 
@@ -298,15 +245,12 @@ async def flow():
 
         # Convert the refined response to LlmResultList for summarize step
         refined_results = LlmResultList(responses=[
-            LlmResult(llm=response.llm, response=response.response)
+            LlmResult(llm_name=response.llm_name, response=response.response)
             for response in refined_response.responses
         ])
 
         # Step 3: Summarize
-        summarize_request = SingleLlmRequest(
-            llm=LlmModel(llm_name=LlmName.GEMINI, model_name="models/gemini-exp-1121"),
-            prompt="Summarize these results."
-        )
+        summarize_request = SingleLlmRequest(llm_name="Gemini", prompt="Summarize these results.")
         summarized_response = await process_llm_result_list_on_llm(refined_results, summarize_request)
 
         # Return the final summarized response as JSON
@@ -329,9 +273,9 @@ async def query_llm():
         llm_request = SingleLlmRequest(**data)
 
         # Check if the specified LLM is supported
-        if llm_request.llm not in llms:
+        if llm_request.llm_name not in llms:
             return jsonify({
-                "error": f"LLM '{llm_request.llm}' not supported. Available: {list(llms.keys())}"
+                "error": f"LLM '{llm_request.llm_name}' not supported. Available: {list(llms.keys())}"
             }), 400
 
         # Use the llm helper function to process the request
@@ -343,6 +287,7 @@ async def query_llm():
             "error": f"Error processing request: {str(e)}"
         }), 500
 
+    
 @app.post("/llm")
 async def llm_call():
     """
@@ -354,9 +299,9 @@ async def llm_call():
         llm_request = SingleLlmRequest(**data)
 
         # Check if the specified LLM is supported
-        if llm_request.llm not in llms:
+        if llm_request.llm_name not in llms:
             return jsonify({
-                "error": f"LLM '{llm_request.llm}' not supported. Available: {list(llms.keys())}"
+                "error": f"LLM '{llm_request.llm_name}' not supported. Available: {list(llms.keys())}"
             }), 400
 
         # Use the llm helper function to process the request
@@ -370,6 +315,8 @@ async def llm_call():
 
 if __name__ == "__main__":
     # Usage
+    
+
     port = int(os.getenv("PORT", 8080))
     #print(f"Starting server on port {port}")
     app.run(host="0.0.0.0", port=port)
