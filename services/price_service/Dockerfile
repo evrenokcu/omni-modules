@@ -35,4 +35,4 @@ EXPOSE 8081
 VOLUME /price
 
 # Run the application.
-CMD ["python", "services/price_service/app.py"]
+CMD ["python", "services/price_service/main.py"]
