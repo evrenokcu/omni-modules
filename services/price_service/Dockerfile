@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc
 RUN pip install --upgrade pip
 
 # Copy the requirements file and install dependencies.
-COPY . .
+COPY requirements.txt .
 RUN pip install --prefix=/install -r requirements.txt
 
 # ---------- Stage 2: Production ----------
@@ -22,10 +22,11 @@ WORKDIR /app
 # Copy installed packages from the builder stage.
 COPY --from=builder /install /usr/local
 
+COPY . .
 # Copy only the required folders and files.
-
-COPY lib/ lib/
-COPY services/price_service/ services/price_service/
+#COPY requirements.txt .
+#COPY lib/ lib/
+#COPY services/price_service/ services/price_service/
 
 # Expose the port your app uses.
 EXPOSE 8081
