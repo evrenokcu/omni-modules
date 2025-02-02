@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc
 RUN pip install --upgrade pip
 
 # Copy the requirements file and install dependencies.
-COPY services/price_service/requirements.txt .
+COPY . .
 RUN pip install --prefix=/install -r requirements.txt
 
 # ---------- Stage 2: Production ----------
