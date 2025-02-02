@@ -128,7 +128,7 @@ async def get_llms():
     hardcoded_models = [
         {
             "llm_name": "ChatGPT",
-            "model_name": "gpt-3.5-turbo",
+            "model_name": "gpt-3.5s-turbo",
             "id": "ChatGPT:gpt-3.5-turdbo"
         },
         {
