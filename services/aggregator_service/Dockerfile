@@ -23,7 +23,7 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 
 # Copy only the required folders and files.
-COPY lib/ lib/
+COPY ../../lib/ lib/
 COPY services/aggregator_service/ services/aggregator_service/
 
 # Expose the port your app uses.
