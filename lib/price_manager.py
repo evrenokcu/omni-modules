@@ -6,7 +6,7 @@ import os
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
 
-from .models import AggregatedPrice, AggregatedPriceResponse, PriceResponse
+from .models import AggregatedPrice, AggregatedPriceResponse, ModelPrice, PriceResponse
 from .storage import JSONPriceStorage
 
 class LLMPriceManager:
@@ -78,19 +78,27 @@ Use actual current prices per 1K tokens."""
                 model_config = next((m for m in models if m.model.model_name == model_name), None)
 
                 if model_config:
-                    price_response = PriceResponse(
-                        model=model_config.model,
+                    # Create a ModelPrice instance.
+                    model_price = ModelPrice(
                         input_price=model_data["pricing"]["input_price"],
                         output_price=model_data["pricing"]["output_price"],
                         currency=model_data["pricing"]["currency"]
                     )
-                    cache[f"{model_config.model.llm_name.name}:{model_config.model.model_name}"] = price_response.to_dict()
+                    # Create a PriceResponse using the nested LlmModel and new ModelPrice.
+                    price_response = PriceResponse(
+                        model=model_config.model,
+                        pricing=model_price
+                    )
+                    key = f"{model_config.model.llm_name.name}:{model_config.model.model_name}"
+                    cache[key] = price_response.to_dict()
 
             self.storage.save_prices(cache)
             print("Price registry updated successfully.")
 
         except Exception as e:
             print(f"Error fetching prices: {str(e)}")
+
+
     def get_combined_enabled_prices(self):
         """
         Filters the registry for enabled LLM model configurations,
@@ -111,7 +119,6 @@ Use actual current prices per 1K tokens."""
             key = f"{cfg.model.id}"
             if key in cache:
                 # Create a PriceResponse from the stored cache.
-                # (Assuming cache contains a dictionary with proper keys.)
                 price_resp = PriceResponse.from_dict(cache[key], cfg.model)
             else:
                 price_resp = None
@@ -119,7 +126,7 @@ Use actual current prices per 1K tokens."""
             aggregated_list.append(
                 AggregatedPrice(
                     config=cfg,
-                    price_response=price_resp
+                    price=price_resp.pricing
                 )
             )
 

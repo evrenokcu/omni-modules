@@ -1,5 +1,7 @@
 from dataclasses import dataclass
+import json
 import os
+from pathlib import Path
 #from dotenv import load_dotenv
 from quart import Quart, request, jsonify
 #from llama_index.llms.openai import OpenAI
@@ -8,10 +10,10 @@ from quart import Quart, request, jsonify
 # from llama_index.llms.groq import Groq
 from datetime import datetime
 from quart_cors import cors
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
 import time
 import asyncio 
-from typing import Dict, List
+from typing import Any, Dict, List
 ### start of langchain
 from dotenv import load_dotenv
 from langchain_community.callbacks import get_openai_callback
@@ -21,6 +23,8 @@ import os
 from langchain_openai import ChatOpenAI, OpenAI
 from langchain_anthropic import Anthropic, AnthropicLLM, ChatAnthropic
 from langchain_google_genai import ChatGoogleGenerativeAI
+
+
 
 
 #env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "./.env"))
@@ -55,6 +59,8 @@ os.environ["GRPC_TRACE"] = ""
 
 # Load environment variables.
 load_dotenv()
+CACHE_DIR = os.getenv("CACHE_DIR", "cache")
+Path(CACHE_DIR).mkdir(parents=True, exist_ok=True)
 
 def is_running_in_container() -> bool:
     try:
@@ -72,7 +78,10 @@ project_root = abspath(join(dirname(__file__), "../../"))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from lib.models import LlmModel, LlmName
+from lib.models import LlmModel, LlmName, ModelPrice
+from lib.price_manager import LLMPriceManager
+from lib.registry import JSONLLMRegistry
+from lib.storage import JSONPriceStorage
 
 # if is_running_in_container():
 #         print("The app is running inside a container.")
@@ -88,9 +97,52 @@ app = Quart(__name__)
 app = cors(app, allow_origin="*")
 app.debug = True
 
+registry = None
+storage = None
+price_manager = None
+
+llm_client_price_dict = {}
+
+async def initialize_llm_clients():
+    global llm_client_price_dict
+    
+    # Get the aggregated response after price_manager is initialized
+    aggregated_response = price_manager.get_combined_enabled_prices()
+    
+    # Build the dictionary
+    llm_client_price_dict = {
+        agg.config.model: LlmClientPrice(
+            chat_client=create_chat_client(agg.config.model),
+            pricing=agg.price if agg.price is not None 
+                    else ModelPrice(input_price=0.0, output_price=0.0, currency="USD")
+        )
+        for agg in aggregated_response.responses
+    }
+
+# Modify your startup function to also initialize the LLM clients
+@app.before_serving
+async def startup():
+    global registry, storage, price_manager
+    print("Startup: Initializing registry, storage, and price_manager...")
+    registry = JSONLLMRegistry()
+    storage = JSONPriceStorage()
+    price_manager = LLMPriceManager(registry, storage)
+    await initialize_llm_clients()
+    print("Startup complete.")
+
+
 class SingleLlmRequest(BaseModel):
-    llm: "LlmModel"  # changed from string field llm_name to an Llm object
+    llm: LlmModel
     prompt: str
+
+    @validator('llm', pre=True)
+    def parse_llm(cls, value):
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except Exception as e:
+                raise ValueError("llm field is not valid JSON")
+        return value
 
 class LlmRequest(BaseModel):
     prompt: str
@@ -147,39 +199,83 @@ from pydantic import computed_field
 
 
 def create_chat_client(llm: LlmModel):
-    if llm.llm_name == LlmName.OPENAI:
+    if llm.llm_name == LlmName.ChatGPT:
         return ChatOpenAI(model_name=llm.model_name)
-    elif llm.llm_name == LlmName.CLAUDE:
+    elif llm.llm_name == LlmName.Claude:
         return ChatAnthropic(model=llm.model_name, api_key=os.getenv("ANTHROPIC_API_KEY"))
-    elif llm.llm_name == LlmName.GEMINI:
+    elif llm.llm_name == LlmName.Gemini:
         return ChatGoogleGenerativeAI(model=llm.model_name)
     else:
         raise ValueError(f"Unsupported LLM type: {llm.llm_name}")
 
-# Create a list of Llm objects
-llm_list = [
-    LlmModel(llm_name=LlmName.OPENAI, model_name="gpt-4"),
-    LlmModel(llm_name=LlmName.CLAUDE, model_name="claude-3-5-sonnet-20240620"),
-    LlmModel(llm_name=LlmName.GEMINI, model_name="gemini-exp-1121"),
-]
+class LlmClientPrice(BaseModel):
+    chat_client: Any  # Replace `Any` with a more specific type if available.
+    pricing: ModelPrice
 
-# Build the llms dictionary from the list of Llm objects using the factory method.
-# The keys are Llm objects and the values are the corresponding chat client instances.
-llms = { llm: create_chat_client(llm) for llm in llm_list }
+# # Assume llm_list and create_chat_client are defined as:
+# llm_list = [
+#     LlmModel(llm_name=LlmName.OPENAI, model_name="gpt-4"),
+#     LlmModel(llm_name=LlmName.CLAUDE, model_name="claude-3-5-sonnet-20240620"),
+#     LlmModel(llm_name=LlmName.GEMINI, model_name="gemini-exp-1121"),
+# ]
+
+# # # Create the dictionary for chat clients (already existing):
+# # llms = { llm: create_chat_client(llm) for llm in llm_list }
+
+# # Now create another dictionary where the value is composed of the chat client and a ModelPrice.
+# # Here, we initialize pricing with default values (0.0); you may update these later.
+# llm_client_price_dict = {
+#     llm: LlmClientPrice(
+#         chat_client=create_chat_client(llm),
+#         pricing=ModelPrice(input_price=0.0, output_price=0.0, currency="USD")
+#     )
+#     for llm in llm_list
+# }
+
+# # For demonstration, print the dictionary (using model_dump for Pydantic models):
+# for key, value in llm_client_price_dict.items():
+#     print(f"Key: {key.to_dict()} -> Value: {value.model_dump()}")
+
+# aggregated_response = price_manager.get_combined_enabled_prices()
+
+# # Build the dictionary: keys are LlmModel (from the AggregatedPrice.config.model),
+# # values are LlmClientPrice (which composes a chat client and a ModelPrice).
+# llm_client_price_dict = {
+#     agg.config.model: LlmClientPrice(
+#         chat_client=create_chat_client(agg.config.model),
+#         pricing=agg.price if agg.price is not None 
+#                 else ModelPrice(input_price=0.0, output_price=0.0, currency="USD")
+#     )
+#     for agg in aggregated_response.responses
+# }
+
+# # For demonstration, print the resulting dictionary.
+# for model, client_price in llm_client_price_dict.items():
+#     print(f"Key: {model.to_dict()} -> Value: {client_price.model_dump()}")
+
+import time
+from datetime import datetime
 
 async def process_llm(request: SingleLlmRequest) -> LlmResponse:
     start_time = time.time()
-    llm_client = llms[request.llm]
-    response = await llm_client.ainvoke(request.prompt)
-    token_count = response.usage_metadata.get("total_tokens", 0)  # 0 as a fallback value
-    
-    response_text = response.content if hasattr(response, 'content') else str(response)
+    try:
+        llm_client = llm_client_price_dict[request.llm].chat_client
+        response = await llm_client.ainvoke(request.prompt)
+        token_count = response.usage_metadata.get("total_tokens", 0)  # 0 as a fallback value
+
+        response_text = response.content if hasattr(response, 'content') else str(response)
+        status = "completed"
+    except Exception as e:
+        token_count = 0  # Default fallback if error occurs
+        response_text = f"Error: {str(e)}"
+        status = "failed"
     end_time = time.time()
+
     return LlmResponse(
         llm=request.llm,
         response=response_text,
         timestamp=datetime.now().isoformat(),
-        status="completed",
+        status=status,
         duration=end_time - start_time,
         token_count=token_count,  # Default value for token count
         price=0.0
@@ -213,7 +309,7 @@ async def process_llm_result_list(llm_result_list: LlmResultList, request: LlmRe
     llm_request = generate_prompt_from_result_list(llm_result_list, request)
 
     # Call process_llm_list with the updated LlmRequest and all LLM objects
-    return await process_llm_list(llm_request, list(llms.keys()))
+    return await process_llm_list(llm_request, list(llm_client_price_dict.keys()))
 
 async def process_llm_result_list_on_llm(llm_result_list: LlmResultList, request: SingleLlmRequest) -> LlmResponseList:
     """
@@ -228,7 +324,7 @@ async def process_llm_result_list_on_llm(llm_result_list: LlmResultList, request
 async def process_summarize(responses: LlmResultList) -> LlmResponseList:
     prompt = os.getenv("MERGE_PROMPT", "Summarize these responses.")
     summarize_request = SingleLlmRequest(
-        llm=LlmModel(llm_name=LlmName.GEMINI, model_name="models/gemini-exp-1121"),
+        llm=LlmModel(llm_name=LlmName.Gemini, model_name="models/gemini-exp-1121"),
         prompt=prompt
     )
     return await process_llm_result_list_on_llm(responses, summarize_request)
@@ -268,7 +364,7 @@ async def aggregate():
     llm_request = LlmRequest(**data)
 
     # Use the helper method to process the LLMs
-    llm_response_list = await process_aggregate(llm_request, list(llms.keys()))
+    llm_response_list = await process_aggregate(llm_request, list(llm_client_price_dict.keys()))
 
     # Return the LlmResponseList as a JSON response
     return jsonify(llm_response_list.model_dump())
@@ -284,7 +380,7 @@ async def flow():
         llm_request = LlmRequest(**data)
 
         # Step 1: Aggregate
-        llm_objs = list(llms.keys())
+        llm_objs = list(llm_client_price_dict.keys())
         aggregated_response = await process_aggregate(llm_request, llm_objs)
 
         # Convert the aggregated response to LlmResultList for refine step
@@ -304,7 +400,7 @@ async def flow():
 
         # Step 3: Summarize
         summarize_request = SingleLlmRequest(
-            llm=LlmModel(llm_name=LlmName.GEMINI, model_name="models/gemini-exp-1121"),
+            llm=LlmModel(llm_name=LlmName.Gemini, model_name="models/gemini-exp-1121"),
             prompt="Summarize these results."
         )
         summarized_response = await process_llm_result_list_on_llm(refined_results, summarize_request)
@@ -329,9 +425,9 @@ async def query_llm():
         llm_request = SingleLlmRequest(**data)
 
         # Check if the specified LLM is supported
-        if llm_request.llm not in llms:
+        if llm_request.llm not in llm_client_price_dict:
             return jsonify({
-                "error": f"LLM '{llm_request.llm}' not supported. Available: {list(llms.keys())}"
+                "error": f"LLM '{llm_request.llm}' not supported. Available: {list(llm_client_price_dict.keys())}"
             }), 400
 
         # Use the llm helper function to process the request
@@ -340,8 +436,10 @@ async def query_llm():
 
     except Exception as e:
         return jsonify({
-            "error": f"Error processing request: {str(e)}"
+            "error": f"Error processing request a: {str(e)}"
         }), 500
+    
+    
 
 @app.post("/llm")
 async def llm_call():
@@ -354,9 +452,9 @@ async def llm_call():
         llm_request = SingleLlmRequest(**data)
 
         # Check if the specified LLM is supported
-        if llm_request.llm not in llms:
+        if llm_request.llm not in llm_client_price_dict:
             return jsonify({
-                "error": f"LLM '{llm_request.llm}' not supported. Available: {list(llms.keys())}"
+                "error": f"LLM '{llm_request.llm}' not supported. Available: {list(llm_client_price_dict.keys())}"
             }), 400
 
         # Use the llm helper function to process the request
@@ -369,6 +467,13 @@ async def llm_call():
         }), 500
 
 if __name__ == "__main__":
+    registry_file = Path(CACHE_DIR) / "llm_registry.json"
+    if not registry_file.exists():
+        registry_file.write_text("[]")
+    
+    prices_file = Path(CACHE_DIR) / "llm_prices_cache.json"
+    if not prices_file.exists():
+        prices_file.write_text("{}")
     # Usage
     port = int(os.getenv("PORT", 8080))
     #print(f"Starting server on port {port}")

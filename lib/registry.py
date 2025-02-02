@@ -14,6 +14,12 @@ class LLMRegistryProtocol(Protocol):
 
     def persist(self) -> None:
         ...
+ 
+    # "ChatGPT": ChatOpenAI(model_name="gpt-4"),
+    # #"ChatGPT": ChatGoogleGenerativeAI(model="models/gemini-1.5-flash"),
+    #  "Claude": ChatAnthropic(model="claude-3-5-sonnet-20240620", api_key=os.getenv("ANTHROPIC_API_KEY")),
+    # #"Claude": ChatGoogleGenerativeAI(model="models/gemini-1.5-flash"),
+    # "Gemini": ChatGoogleGenerativeAI(model="models/gemini-exp-1121"),
 
 # JSON-based implementation of the LLM Registry.
 class JSONLLMRegistry(LLMRegistryProtocol):
@@ -22,26 +28,26 @@ class JSONLLMRegistry(LLMRegistryProtocol):
         # CLAUDE models: one enabled, one disabled.
         LlmModelConfig(
             model=LlmModel(
-                llm_name=LlmName.CLAUDE,
+                llm_name=LlmName.Claude,
                 model_name="claude-3-haiku-20240307"
             ),
-            enabled=True,
+            enabled=False,
             color="#00FF00",  # lime green
             initial_char="C"
         ),
         LlmModelConfig(
             model=LlmModel(
-                llm_name=LlmName.CLAUDE,
-                model_name="claude-3-sonnet-20240307"
+                llm_name=LlmName.Claude,
+                model_name="claude-3-5-sonnet-20240620"
             ),
-            enabled=False,
+            enabled=True,
             color="#008000",  # dark green
             initial_char="C"
         ),
         # OPENAI models: one enabled, one disabled.
         LlmModelConfig(
             model=LlmModel(
-                llm_name=LlmName.OPENAI,
+                llm_name=LlmName.ChatGPT,
                 model_name="gpt-3.5-turbo"
             ),
             enabled=True,
@@ -50,31 +56,21 @@ class JSONLLMRegistry(LLMRegistryProtocol):
         ),
         LlmModelConfig(
             model=LlmModel(
-                llm_name=LlmName.OPENAI,
+                llm_name=LlmName.ChatGPT,
                 model_name="gpt-4-turbo-preview"
             ),
             enabled=False,
             color="#000080",  # navy
             initial_char="O"
         ),
-        # ANTHROPIC models: one enabled, one disabled.
         LlmModelConfig(
             model=LlmModel(
-                llm_name=LlmName.CLAUDE,
-                model_name="anthropic-model-1"
+                llm_name=LlmName.Gemini,
+                model_name="gemini-exp-1121"
             ),
             enabled=True,
-            color="#FF00FF",  # magenta
-            initial_char="A"
-        ),
-        LlmModelConfig(
-            model=LlmModel(
-                llm_name=LlmName.CLAUDE,
-                model_name="anthropic-model-2"
-            ),
-            enabled=False,
-            color="#800080",  # purple
-            initial_char="A"
+            color="#000090",  # navy
+            initial_char="O"
         ),
     ]
 

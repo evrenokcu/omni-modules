@@ -1,33 +1,36 @@
-# Stage 1: Build stage
-FROM python:3.9-slim AS builder
+# ---------- Stage 1: Builder ----------
+FROM python:3.9-slim as builder
 
-# Create a working directory
+# Set the working directory in the builder container.
 WORKDIR /app
 
-# Copy requirements.txt into the container
+# Install build dependencies (if needed)
+RUN apt-get update && apt-get install -y --no-install-recommends gcc
+
+# Upgrade pip
+RUN pip install --upgrade pip
+
+# Copy the requirements file and install dependencies.
 COPY requirements.txt .
+RUN pip install --prefix=/install -r requirements.txt
 
-# Install dependencies into a virtual environment in the /venv directory
-RUN python -m venv /venv && \
-    /venv/bin/pip install --no-cache-dir -r requirements.txt
-
-# Stage 2: Runtime stage
+# ---------- Stage 2: Production ----------
 FROM python:3.9-slim
 
-# Create a working directory
 WORKDIR /app
 
-# Copy the virtual environment from the builder stage
-COPY --from=builder /venv /venv
+# Copy installed packages from the builder stage.
+COPY --from=builder /install /usr/local
 
-# Copy the application code
-COPY app_async.py .
+# Copy only the required folders and files.
+COPY lib/ lib/
+COPY services/aggregator_service/ services/aggregator_service/
 
-# Ensure the virtual environment's Python and pip are used
-ENV PATH="/venv/bin:$PATH"
-
-# Expose the port
+# Expose the port your app uses.
 EXPOSE 8080
 
-# Set the entrypoint to run the Flask app
-CMD ["python", "app_async.py"]
+# Declare a volume mount for persistent storage.
+VOLUME /price
+
+# Run the application.
+CMD ["python", "services/aggregator_service/app.py"]

@@ -13,9 +13,9 @@ from pydantic import BaseModel, ConfigDict, computed_field, field_validator, val
 #     OPENAI = auto()
 
 class LlmName(str, Enum):
-    OPENAI = "ChatGPT"
-    CLAUDE = "Claude"
-    GEMINI = "Gemini"
+    ChatGPT = "ChatGPT"
+    Claude = "Claude"
+    Gemini = "Gemini"
 
 # Data class for an LLM model.
 # @dataclass
@@ -94,14 +94,17 @@ class LlmModelConfig(BaseModel):
             color=data["color"],
             initial_char=data["initial_char"]
         )
+# New entity: ModelPrice
+class ModelPrice(BaseModel):
+    input_price: float
+    output_price: float
+    currency: str = "USD"
 
 # Data class for storing pricing response.
 @dataclass
 class PriceResponse:
     model: LlmModel
-    input_price: float
-    output_price: float
-    currency: str = "USD"
+    pricing: ModelPrice
     timestamp: str = ""
 
     def __post_init__(self):
@@ -110,30 +113,25 @@ class PriceResponse:
 
     def to_dict(self) -> Dict:
         return {
-            "llm_name": self.model.llm_name.name,
-            "model_name": self.model.model_name,
-            "pricing": {
-                "input_price": self.input_price,
-                "output_price": self.output_price,
-                "currency": self.currency
-            },
+            "model": self.model.to_dict(),  # Nested representation of LlmModel.
+            "pricing": self.pricing.model_dump(),  # Using model_dump() for Pydantic models in v2.
             "timestamp": self.timestamp
         }
 
     @classmethod
     def from_dict(cls, data: Dict, model: LlmModel) -> "PriceResponse":
-        pricing = data["pricing"]
+        pricing = ModelPrice(**data["pricing"])
         return cls(
             model=model,
-            input_price=pricing["input_price"],
-            output_price=pricing["output_price"],
-            currency=pricing["currency"],
+            pricing=pricing,
             timestamp=data.get("timestamp", datetime.now().isoformat())
         )
     
+# New entity: AggregatedPrice
 class AggregatedPrice(BaseModel):
     config: LlmModelConfig
-    price_response: Optional[PriceResponse] = None
+    price: Optional[ModelPrice] = None
 
+# New entity: AggregatedPriceResponse
 class AggregatedPriceResponse(BaseModel):
     responses: List[AggregatedPrice]
