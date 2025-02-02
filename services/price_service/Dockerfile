@@ -23,7 +23,8 @@ WORKDIR /app
 COPY --from=builder /install /usr/local
 
 # Copy all files from the build context into /app.
-COPY . .
+COPY /lib /app/lib
+COPY /services /app/services
 
 # (Optional) Verify that main.py exists.
 RUN ls -la /app
@@ -35,4 +36,4 @@ EXPOSE 8080
 VOLUME /price
 
 # Run the application.
-CMD ["python", "main.py"]
+CMD ["python", "services/price_service/main.py"]
