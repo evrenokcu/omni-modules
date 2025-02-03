@@ -123,7 +123,7 @@ async def stream_prices():
 # In services/price_service/app.py
 
 @app.route("/hello", methods=["GET"])
-async def get_llms():
+async def hello():
     # Return hardcoded models
     hardcoded_models = [
         {
