@@ -4,20 +4,27 @@ FROM python:3.9-slim as builder
 # Set the working directory in the builder container.
 WORKDIR /app
 
-# Install build dependencies (if needed)
-RUN apt-get update && apt-get install -y --no-install-recommends gcc
+# Install build dependencies and clean up apt cache.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc && \
+    rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip
+# Upgrade pip.
 RUN pip install --upgrade pip
 
 # Copy the requirements file and install dependencies.
 COPY services/aggregator_service/requirements.txt .
-RUN pip install --prefix=/install -r requirements.txt
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# (Optional) Copy additional code if needed for the build stage.
+# In this case, we leave code copying for the production stage.
 
 # ---------- Stage 2: Production ----------
 FROM python:3.9-slim
 
+# Set working directory and environment variables.
 WORKDIR /app
+ENV PYTHONUNBUFFERED=1
 
 # Copy installed packages from the builder stage.
 COPY --from=builder /install /usr/local
@@ -32,5 +39,8 @@ EXPOSE 8080
 # Declare a volume mount for persistent storage.
 VOLUME /price
 
-# Run the application.
-CMD ["python", "services/aggregator_service/main.py"]
+# (Optional) Run as a non-root user for better security.
+USER nobody:nogroup
+
+# Run the application with unbuffered output.
+CMD ["python", "-u", "services/aggregator_service/main.py"]

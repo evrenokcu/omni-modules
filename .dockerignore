@@ -1,0 +1,26 @@
+# Ignore Git metadata and ignore files
+.git
+.gitignore
+
+# Ignore backup files and directories (not needed for the build)
+backup/
+
+# Ignore cache directories (if not required for the build)
+cache/
+
+# Ignore Python bytecode and cache folders
+**/__pycache__/
+**/*.py[co]
+*$py.class
+
+# Ignore environment and virtual environment files/directories
+.env
+.env.*
+venv/
+ENV/
+env/
+
+# Ignore temporary and system files
+*.swp
+*.swo
+.DS_Store
