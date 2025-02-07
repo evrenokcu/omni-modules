@@ -66,7 +66,7 @@ class JSONLLMRegistry(LLMRegistryProtocol):
         LlmModelConfig(
             model=LlmModel(
                 llm_name=LlmName.Gemini,
-                model_name="gemini-exp-1121"
+                model_name="gemini-2.0-flash-exp"
             ),
             enabled=True,
             color="#000090",  # navy

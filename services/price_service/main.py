@@ -122,22 +122,6 @@ async def stream_prices():
     return EventSourceResponse(event_generator())
 # In services/price_service/app.py
 
-@app.route("/hello", methods=["GET"])
-async def hello():
-    # Return hardcoded models
-    hardcoded_models = [
-        {
-            "llm_name": "ChatGPT",
-            "model_name": "gpt-3.5s-turbo",
-            "id": "ChatGPT:gpt-3.5-turdbo"
-        },
-        {
-            "llm_name": "Claude",
-            "model_name": "claude-3",
-            "id": "Claude:claude-3"
-        }
-    ]
-    return jsonify(hardcoded_models)
 
 @app.route("/prices/aggregated", methods=["GET"])
 async def get_aggregated_prices():

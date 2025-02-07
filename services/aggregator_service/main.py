@@ -10,7 +10,7 @@ from quart import Quart, request, jsonify
 # from llama_index.llms.groq import Groq
 from datetime import datetime
 from quart_cors import cors
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator, validator
 import time
 import asyncio 
 from typing import Any, Dict, List
@@ -135,7 +135,7 @@ class SingleLlmRequest(BaseModel):
     llm: LlmModel
     prompt: str
 
-    @validator('llm', pre=True)
+    @field_validator('llm', mode='before')
     def parse_llm(cls, value):
         if isinstance(value, str):
             try:
