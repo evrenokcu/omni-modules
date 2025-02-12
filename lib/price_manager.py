@@ -44,7 +44,7 @@ class LLMPriceManager:
         ...
     ]
 }}
-Use actual current prices per 1M tokens."""
+Use actual current prices per 1 Million tokens."""
     ),
     ("human", "Provide the latest input and output token prices for these models: {model_list}")
 ])

@@ -156,9 +156,12 @@ class LlmResponse(BaseModel):
     response: str
     timestamp: str
     status: str
-    duration: float 
+    response_time: float 
     token_count: int = 0  # Default value for token count
     price: float = 0.0
+    input_tokens: int = 0
+    output_tokens: int = 0
+    estimated_cost: float = 0.0
 
 class LlmResponseList(BaseModel):
     responses: list[LlmResponse]
@@ -261,24 +264,56 @@ async def process_llm(request: SingleLlmRequest) -> LlmResponse:
     try:
         llm_client = llm_client_price_dict[request.llm].chat_client
         response = await llm_client.ainvoke(request.prompt)
+        end_time = time.time()
+
         token_count = response.usage_metadata.get("total_tokens", 0)  # 0 as a fallback value
 
         response_text = response.content if hasattr(response, 'content') else str(response)
+        metadata = response.usage_metadata or {}
+        print(metadata)
+        print("=============================")
+        print(response.response_metadata)
+        print("=============================")
+        print(response.additional_kwargs)       
+        print("=============================")
+        print(response) 
         status = "completed"
+
+        usage = response.usage_metadata or {}
+        total_tokens = usage.get("total_tokens", 0)
+        input_tokens = usage.get("input_tokens", 0)  # Input tokens
+        output_tokens = usage.get("output_tokens", 0)
+
+        pricing=llm_client_price_dict[request.llm].pricing
+        input_cost=input_tokens*pricing.input_price
+        output_cost=output_tokens*pricing.output_price
+        estimated_cost=input_cost+output_cost
+
+
+        print("total:")
+        print(total_tokens)
+        print("prompt")
+        print(input_tokens)
+        print("completion")
+        print(output_tokens)
+
     except Exception as e:
         token_count = 0  # Default fallback if error occurs
         response_text = f"Error: {str(e)}"
         status = "failed"
-    end_time = time.time()
+    
 
     return LlmResponse(
         llm=request.llm,
         response=response_text,
         timestamp=datetime.now().isoformat(),
         status=status,
-        duration=end_time - start_time,
+        response_time=end_time - start_time,
         token_count=token_count,  # Default value for token count
-        price=0.0
+        price=0.0,
+        estimated_cost=estimated_cost,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
     )
 
 async def process_llm_list(llm_request: LlmRequest, llm_objs: List[LlmModel]) -> LlmResponseList:
