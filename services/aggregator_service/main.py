@@ -359,7 +359,7 @@ async def process_llm_result_list_on_llm(llm_result_list: LlmResultList, request
 async def process_summarize(responses: LlmResultList) -> LlmResponseList:
     prompt = os.getenv("MERGE_PROMPT", "Summarize these responses.")
     summarize_request = SingleLlmRequest(
-        llm=LlmModel(llm_name=LlmName.Gemini, model_name="models/gemini-exp-1121"),
+        llm=responses.responses[0].llm,
         prompt=prompt
     )
     return await process_llm_result_list_on_llm(responses, summarize_request)
